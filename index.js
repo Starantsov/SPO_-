@@ -83,22 +83,12 @@ function analyze(str) {
     let currentState = 0
     let tokenString = ""
     let resultsArr = [] // Results array in format ["(number, 2)", (id, asd), ...]
-
+    
     for(let index = 0; index < initStrArr.length; index++) {
-        const char = initStrArr[index]
-        const newState = getNewState(currentState, char)
-        statesBuffer.push(currentState)
-
-        if (char == " ") { continue; }
-        
-        if (newState !== null) {
-            currentState = newState
-            tokenString += char
-        } else {
-            if (!tokenTable[currentState]) {
-                let prevStep = 1
+        function iterateBack(extraIndex = 0) {
+            let prevStep = 1
                 let revercedBufferArr = statesBuffer.slice(1).reverse()
-
+ 
                 // From the end of buffered states iterate and find first successful state
                 while(
                     !getToken(revercedBufferArr[prevStep]) 
@@ -112,23 +102,41 @@ function analyze(str) {
                 createResultRecord()
                 tokenString = ""
                 currentState = 0
-                index -= prevStep + 1
-                continue;
+                index -= prevStep + 1 - extraIndex
+        }
+
+        const char = initStrArr[index]
+        const newState = getNewState(currentState, char)
+        statesBuffer.push(currentState)
+
+        if (char == " ") { continue; }
+        
+        if (newState) {
+            currentState = newState
+            tokenString += char
+        } else {
+            if (!tokenTable[currentState]) {
+                iterateBack(); continue;
             }
             createResultRecord()
             tokenString = char
             currentState = 0
             currentState = getNewState(currentState, char)
         }
-
+        
         if(index === initStrArr.length - 1) {
-            createResultRecord()
+            if(getToken(currentState)) {
+                createResultRecord()
+            } else {
+                statesBuffer.push(currentState)
+                iterateBack(1)
+            }
         }
     }
     return resultsArr.join("; ")    
 }
 
-let output = analyze("123e+x")
+let output = analyze("123e+")
 console.log(output)
 
 console.assert(analyze('667.22') == '(number, 667.22)')
@@ -162,3 +170,4 @@ console.assert(analyze('1+2*3,var') == '(number, 1); (operator, +); (number, 2);
 console.assert(analyze('123e1') == '(number, 123e1)')
 console.assert(analyze('123 e1') == '(number, 123e1)')
 console.assert(analyze('123e+x') == '(number, 123); (id, e); (operator, +); (id, x)')
+console.assert(analyze('123e+') == '(number, 123); (id, e); (operator, +)')
